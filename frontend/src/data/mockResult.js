@@ -19,7 +19,7 @@ export const mockResult = {
       internal: 24,
       external: 62,
       total: 86,
-      grade: "A+",
+      gradePoint: 9,
     },
     {
       code: "ETCS-303",
@@ -27,7 +27,7 @@ export const mockResult = {
       internal: 23,
       external: 58,
       total: 81,
-      grade: "A",
+      gradePoint: 8,
     },
     {
       code: "ETCS-305",
@@ -35,7 +35,7 @@ export const mockResult = {
       internal: 22,
       external: 55,
       total: 77,
-      grade: "B+",
+      gradePoint: 7,
     },
     {
       code: "ETCS-307",
@@ -43,7 +43,7 @@ export const mockResult = {
       internal: 25,
       external: 60,
       total: 85,
-      grade: "A+",
+      gradePoint: 9,
     },
     {
       code: "ETCS-309",
@@ -51,7 +51,7 @@ export const mockResult = {
       internal: 24,
       external: 64,
       total: 88,
-      grade: "A+",
+      gradePoint: 9,
     },
     {
       code: "ETHS-311",
@@ -59,7 +59,7 @@ export const mockResult = {
       internal: 21,
       external: 51,
       total: 72,
-      grade: "B+",
+      gradePoint: 7,
     },
     {
       code: "ETCS-351",
@@ -67,7 +67,7 @@ export const mockResult = {
       internal: 46,
       external: 42,
       total: 88,
-      grade: "A+",
+      gradePoint: 9,
     },
     {
       code: "ETCS-353",
@@ -75,7 +75,7 @@ export const mockResult = {
       internal: 45,
       external: 40,
       total: 85,
-      grade: "A",
+      gradePoint: 8,
     },
   ],
 };

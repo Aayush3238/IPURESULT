@@ -48,32 +48,6 @@ export default function GradePointCard({ sgpa, cgpa, isCGPAMode = false, delay =
   const icon = isCGPAMode ? Award : Target;
   const Icon = icon;
 
-  // Determine grade letter based on SGPA/CGPA value
-  const getGrade = (value) => {
-    const num = parseFloat(value);
-    if (num >= 9) return "A+";
-    if (num >= 8) return "A";
-    if (num >= 7) return "B+";
-    if (num >= 6) return "B";
-    if (num >= 5) return "C";
-    if (num >= 4) return "P";
-    return "F";
-  };
-
-  const getGradeColor = (value) => {
-    const num = parseFloat(value);
-    if (num >= 9) return "text-success-light";
-    if (num >= 8) return "text-cyan-light";
-    if (num >= 7) return "text-accent-light";
-    if (num >= 6) return "text-warning-light";
-    if (num >= 5) return "text-navy-200";
-    if (num >= 4) return "text-navy-300";
-    return "text-error-light";
-  };
-
-  const gradeValue = getGrade(displayedValue);
-  const gradeColor = getGradeColor(displayedValue);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -95,9 +69,6 @@ export default function GradePointCard({ sgpa, cgpa, isCGPAMode = false, delay =
             </div>
           </div>
         </div>
-        <span className={`inline-flex items-center rounded-lg px-3 py-1.5 font-heading text-sm font-bold ring-1 ring-offset-1 ${gradeColor} ring-current ring-opacity-30 sm:text-base`}>
-          {gradeValue}
-        </span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:gap-6">

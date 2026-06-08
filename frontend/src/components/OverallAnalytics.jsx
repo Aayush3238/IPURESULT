@@ -57,7 +57,7 @@ function PieTooltip({ active, payload }) {
   return (
     <div className="glass rounded-xl border border-navy-600 px-3 py-2 shadow-card">
       <p className="text-xs font-semibold" style={{ color: payload[0].payload.fill }}>
-        Grade {payload[0].name}: {payload[0].value} subjects
+        GP {payload[0].name}: {payload[0].value} subjects
       </p>
     </div>
   );
@@ -301,7 +301,7 @@ export default function OverallAnalytics({ analytics, insights }) {
             <div className="mt-1 flex items-center gap-2 text-[10px] text-navy-300 sm:text-xs">
               <span>{highestSubjectAll.code}</span>
               <span className="font-bold text-success-light">{highestSubjectAll.total} marks</span>
-              <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success-light">{highestSubjectAll.grade}</span>
+              <span className="rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-bold text-success-light">GP: {highestSubjectAll.gradePoint}</span>
             </div>
           </motion.div>
         )}
@@ -315,7 +315,7 @@ export default function OverallAnalytics({ analytics, insights }) {
             <div className="mt-1 flex items-center gap-2 text-[10px] text-navy-300 sm:text-xs">
               <span>{weakestSubjectAll.code}</span>
               <span className="font-bold text-warning-light">{weakestSubjectAll.total} marks</span>
-              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-bold text-warning-light">{weakestSubjectAll.grade}</span>
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 text-[9px] font-bold text-warning-light">GP: {weakestSubjectAll.gradePoint}</span>
             </div>
           </motion.div>
         )}

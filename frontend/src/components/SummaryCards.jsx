@@ -60,7 +60,7 @@ export default function SummaryCards({ subjects, summary }) {
   const totalMarks = subjects.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   const maxPossible = subjects.length * 100;
   const sgpa = summary?.sgpa || semesterGrades.sgpa;
-  const passCount = subjects.filter((s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")).length;
+  const passCount = subjects.filter((s) => s.gradePoint > 0).length;
 
   const cards = [
     {

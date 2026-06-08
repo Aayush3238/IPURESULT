@@ -1,12 +1,12 @@
 const gradeStyles = {
-  O: "bg-cyan/15 text-cyan-light ring-cyan/30",
-  "A+": "bg-success/15 text-success-light ring-success/30",
-  A: "bg-accent/15 text-accent-light ring-accent/30",
-  "B+": "bg-warning/15 text-warning-light ring-warning/30",
-  B: "bg-warning/10 text-warning-light ring-warning/20",
-  C: "bg-navy-600/40 text-navy-100 ring-navy-500/40",
-  P: "bg-navy-700/60 text-navy-200 ring-navy-500/40",
-  F: "bg-error/15 text-error-light ring-error/30",
+  10: "bg-cyan/15 text-cyan-light ring-cyan/30",
+  9: "bg-success/15 text-success-light ring-success/30",
+  8: "bg-accent/15 text-accent-light ring-accent/30",
+  7: "bg-warning/15 text-warning-light ring-warning/30",
+  6: "bg-warning/10 text-warning-light ring-warning/20",
+  5: "bg-navy-600/40 text-navy-100 ring-navy-500/40",
+  4: "bg-navy-700/60 text-navy-200 ring-navy-500/40",
+  0: "bg-error/15 text-error-light ring-error/30",
 };
 
 function MobileCard({ subject }) {
@@ -23,10 +23,10 @@ function MobileCard({ subject }) {
         </div>
         <span
           className={`inline-flex shrink-0 min-w-[44px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
-            gradeStyles[subject.grade] || gradeStyles.A
+            gradeStyles[subject.gradePoint] || gradeStyles[8]
           }`}
         >
-          {subject.grade}
+          {subject.gradePoint}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -78,7 +78,7 @@ export default function MarksTable({ subjects }) {
               <th className="px-5 py-3.5 font-bold text-navy-300">Internal</th>
               <th className="px-5 py-3.5 font-bold text-navy-300">External</th>
               <th className="px-5 py-3.5 font-bold text-navy-300">Total</th>
-              <th className="px-5 py-3.5 font-bold text-navy-300">Grade</th>
+              <th className="px-5 py-3.5 font-bold text-navy-300">GP</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-navy-600/30">
@@ -103,10 +103,10 @@ export default function MarksTable({ subjects }) {
                 <td className="px-5 py-4">
                   <span
                     className={`inline-flex min-w-[44px] items-center justify-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${
-                      gradeStyles[subject.grade] || gradeStyles.A
+                      gradeStyles[subject.gradePoint] || gradeStyles[8]
                     }`}
                   >
-                    {subject.grade}
+                    {subject.gradePoint}
                   </span>
                 </td>
               </tr>

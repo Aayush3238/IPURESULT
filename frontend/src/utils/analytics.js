@@ -15,13 +15,13 @@ export function computeSemesterAnalytics(result) {
   const highestSubject = sorted[0] || null;
   const weakestSubject = sorted[sorted.length - 1] || null;
 
-  const passCount = subjects.filter((s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")).length;
+  const passCount = subjects.filter((s) => s.gradePoint > 0).length;
   const failCount = subjects.length - passCount;
 
   const gradeDistribution = {};
   subjects.forEach((s) => {
-    const g = s.grade || "N/A";
-    gradeDistribution[g] = (gradeDistribution[g] || 0) + 1;
+    const gp = s.gradePoint != null ? s.gradePoint : "N/A";
+    gradeDistribution[gp] = (gradeDistribution[gp] || 0) + 1;
   });
 
   const pieData = Object.entries(gradeDistribution).map(([grade, count]) => ({
@@ -99,14 +99,12 @@ export function computeOverallAnalytics(cache) {
   const overallPercentage = cgpaData.percentage || (maxPossibleAll > 0 ? ((totalMarksAll / maxPossibleAll) * 100).toFixed(1) : "0.0");
   const overallAvgMarks =
     allSubjects.length > 0 ? (totalMarksAll / allSubjects.length).toFixed(1) : "0.0";
-  const overallPassCount = allSubjects.filter(
-    (s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")
-  ).length;
+  const overallPassCount = allSubjects.filter((s) => s.gradePoint > 0).length;
 
   const gradeDist = {};
   allSubjects.forEach((s) => {
-    const g = s.grade || "N/A";
-    gradeDist[g] = (gradeDist[g] || 0) + 1;
+    const gp = s.gradePoint != null ? s.gradePoint : "N/A";
+    gradeDist[gp] = (gradeDist[gp] || 0) + 1;
   });
 
   const pieData = Object.entries(gradeDist).map(([grade, count]) => ({
@@ -282,7 +280,7 @@ export function getInsights(semesterAnalytics, overallAnalytics, isAllMode) {
         type: "strongest",
         label: "Top Subject",
         value: highestSubject.name,
-        detail: `Score: ${highestSubject.total} (${highestSubject.grade})`,
+        detail: `Score: ${highestSubject.total} (GP: ${highestSubject.gradePoint})`,
         color: "success",
       });
     }
@@ -292,7 +290,7 @@ export function getInsights(semesterAnalytics, overallAnalytics, isAllMode) {
         type: "weakest",
         label: "Needs Focus",
         value: weakestSubject.name,
-        detail: `Score: ${weakestSubject.total} (${weakestSubject.grade})`,
+        detail: `Score: ${weakestSubject.total} (GP: ${weakestSubject.gradePoint})`,
         color: "warning",
       });
     }

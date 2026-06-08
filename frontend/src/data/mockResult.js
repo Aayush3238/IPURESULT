@@ -1,0 +1,88 @@
+export const mockResult = {
+  student: {
+    name: "Aarav Mehra",
+    enrollmentNumber: "01396402722",
+    collegeName: "University School of Information, Communication and Technology",
+    course: "B.Tech Computer Science and Engineering",
+    semester: "5",
+  },
+  summary: {
+    sgpa: "8.72",
+    cgpa: "8.46",
+    totalCredits: 24,
+    status: "Passed",
+  },
+  subjects: [
+    {
+      code: "ETCS-301",
+      name: "Design and Analysis of Algorithms",
+      internal: 24,
+      external: 62,
+      total: 86,
+      grade: "A+",
+    },
+    {
+      code: "ETCS-303",
+      name: "Database Management Systems",
+      internal: 23,
+      external: 58,
+      total: 81,
+      grade: "A",
+    },
+    {
+      code: "ETCS-305",
+      name: "Computer Networks",
+      internal: 22,
+      external: 55,
+      total: 77,
+      grade: "B+",
+    },
+    {
+      code: "ETCS-307",
+      name: "Software Engineering",
+      internal: 25,
+      external: 60,
+      total: 85,
+      grade: "A+",
+    },
+    {
+      code: "ETCS-309",
+      name: "Web Technologies",
+      internal: 24,
+      external: 64,
+      total: 88,
+      grade: "A+",
+    },
+    {
+      code: "ETHS-311",
+      name: "Professional Ethics and Human Values",
+      internal: 21,
+      external: 51,
+      total: 72,
+      grade: "B+",
+    },
+    {
+      code: "ETCS-351",
+      name: "Database Management Systems Lab",
+      internal: 46,
+      external: 42,
+      total: 88,
+      grade: "A+",
+    },
+    {
+      code: "ETCS-353",
+      name: "Web Technologies Lab",
+      internal: 45,
+      external: 40,
+      total: 85,
+      grade: "A",
+    },
+  ],
+};
+
+export const errorMessages = {
+  credentials: "Invalid enrollment number or password. Please verify your details.",
+  captcha: "The captcha entered does not match. Refresh and try again.",
+  server: "The result service is currently unavailable. Please try again shortly.",
+  generic: "Something went wrong while fetching your result.",
+};

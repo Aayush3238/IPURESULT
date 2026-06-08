@@ -1,7 +1,12 @@
 const gradeStyles = {
+  O: "bg-cyan/15 text-cyan-light ring-cyan/30",
   "A+": "bg-success/15 text-success-light ring-success/30",
   A: "bg-accent/15 text-accent-light ring-accent/30",
   "B+": "bg-warning/15 text-warning-light ring-warning/30",
+  B: "bg-warning/10 text-warning-light ring-warning/20",
+  C: "bg-navy-600/40 text-navy-100 ring-navy-500/40",
+  P: "bg-navy-700/60 text-navy-200 ring-navy-500/40",
+  F: "bg-error/15 text-error-light ring-error/30",
 };
 
 function MobileCard({ subject }) {

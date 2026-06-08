@@ -25,6 +25,7 @@ import {
   GraduationCap,
   Layers,
 } from "lucide-react";
+import GradePointCard from "./GradePointCard.jsx";
 
 const CHART_COLORS = ["#3B82F6", "#06B6D4", "#22C55E", "#F59E0B", "#EF4444", "#A855F7", "#EC4899", "#14B8A6"];
 
@@ -139,6 +140,7 @@ export default function OverallAnalytics({ analytics, insights }) {
     weakestSemester,
     highestSubjectAll,
     weakestSubjectAll,
+    cgpa,
   } = analytics;
 
   return (
@@ -158,8 +160,15 @@ export default function OverallAnalytics({ analytics, insights }) {
         </div>
       </div>
 
+      <GradePointCard 
+        sgpa={cgpa || "0.00"}
+        cgpa={cgpa || "0.00"}
+        isCGPAMode={true}
+        delay={0.05}
+      />
+
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <StatCard icon={GraduationCap} label="Overall %" value={`${overallPercentage}%`} color="from-accent/20 to-accent/5" delay={0.05} />
+        <StatCard icon={GraduationCap} label="CGPA" value={cgpa || "0.00"} color="from-accent/20 to-accent/5" delay={0.05} />
         <StatCard icon={BarChart3} label="Avg Marks" value={overallAvgMarks} color="from-cyan/20 to-cyan/5" delay={0.1} />
         <StatCard icon={Activity} label="Growth" value={`${growthPercent > 0 ? "+" : ""}${growthPercent}%`} color={growthPercent >= 0 ? "from-success/20 to-success/5" : "from-error/20 to-error/5"} delay={0.15} />
         <StatCard icon={Shield} label="Pass / Total" value={`${overallPassCount}/${totalSubjects}`} color="from-success/20 to-success/5" delay={0.2} />

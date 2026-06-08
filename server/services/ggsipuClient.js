@@ -116,6 +116,20 @@ function parseSemesters(html) {
   return semesters;
 }
 
+function gradeFromMarks(totalMarks) {
+  const marks = Number(totalMarks);
+  if (!Number.isFinite(marks)) return "-";
+
+  if (marks >= 90) return "O";
+  if (marks >= 75) return "A+";
+  if (marks >= 65) return "A";
+  if (marks >= 55) return "B+";
+  if (marks >= 50) return "B";
+  if (marks >= 45) return "C";
+  if (marks >= 40) return "P";
+  return "F";
+}
+
 function transformResultJson(data, semester) {
   const profile = data.stprofile || {};
   const rows = data.stresult || [];
@@ -129,14 +143,27 @@ function transformResultJson(data, semester) {
     semester: semester || "",
   };
 
-  const subjects = rows.map((row) => ({
-    code: row[1] || "",
-    name: row[2] || "",
-    internal: row[3] != null ? String(row[3]) : "-",
-    external: row[4] != null ? String(row[4]) : "-",
-    total: row[5] != null ? String(row[5]) : "-",
-    grade: row[6] != null ? String(row[6]) : "-",
-  }));
+  const subjects = rows.map((row) => {
+    const internal = Number(row[3]);
+    const external = Number(row[4]);
+    const total =
+      row[5] != null && row[5] !== ""
+        ? Number(row[5])
+        : Number.isFinite(internal) && Number.isFinite(external)
+          ? internal + external
+          : null;
+    const computedGrade = gradeFromMarks(total);
+
+    return {
+      code: row[1] || "",
+      name: row[2] || "",
+      internal: row[3] != null ? String(row[3]) : "-",
+      external: row[4] != null ? String(row[4]) : "-",
+      total: Number.isFinite(total) ? String(total) : "-",
+      grade: computedGrade,
+      credits: row.credit || row.credits || row[7] || row[0] || undefined,
+    };
+  });
 
   const summary = {
     sgpa: report.sgpa || report.SGPA || "",
@@ -283,6 +310,110 @@ export async function fetchResultForSemester({ portalSessionId, semester }) {
     });
 
     return transformResultJson(data, semester);
+  } catch (error) {
+    if (error.statusCode) throw error;
+    throw normalizePortalError(error);
+  }
+}
+
+export async function fetchInternalMarksForSemester({ portalSessionId, semester }) {
+  const portalSession = getPortalSession(portalSessionId);
+
+  if (!portalSession) {
+    throw createHttpError(440, "SESSION_EXPIRED", "Portal session expired. Please login again.");
+  }
+
+  const client = createPortalClient(portalSession.jar);
+
+  try {
+    console.log("[portal:fetch-internals]", { semester });
+
+    const [homeResponse, marksResponse] = await Promise.all([
+      client.get("/student/studenthome.jsp"),
+      client.get("/StudentSearchProcess", {
+        params: { flag: "IM" },
+        headers: {
+          Accept: "application/json, text/javascript, */*; q=0.01",
+          Referer: `${PORTAL_BASE_URL}/student/studenthome.jsp`,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      }),
+    ]);
+
+    let rows;
+    try {
+      rows = typeof marksResponse.data === "string" ? JSON.parse(marksResponse.data) : marksResponse.data;
+    } catch {
+      const html = String(marksResponse.data || "");
+      const failure = detectPortalFailure(html);
+      if (failure) throw failure;
+
+      throw createHttpError(
+        502,
+        "INVALID_RESPONSE",
+        "The portal returned an unexpected internal marks response."
+      );
+    }
+
+    if (!Array.isArray(rows)) {
+      throw createHttpError(
+        502,
+        "INVALID_RESPONSE",
+        "The portal returned an unexpected internal marks format."
+      );
+    }
+
+    const semesterNumber = parseInt(semester, 10);
+    const filteredRows = rows.filter((row) => parseInt(row.euno, 10) === semesterNumber);
+    const firstRow = filteredRows[0] || {};
+    const $home = cheerio.load(homeResponse.data || "");
+    const homeText = $home.text();
+
+    const matchText = (pattern) => homeText.match(pattern)?.[1]?.trim() || "";
+
+    const student = {
+      name:
+        matchText(/(?:Student Name|Name)\s*:\s*([^:\n\r\t]+)/i) ||
+        firstRow.stname ||
+        "Student",
+      enrollmentNumber:
+        matchText(/(?:Enrollment|Roll Number|Roll No)\s*:\s*(\d+)/i) ||
+        firstRow.nrollno ||
+        "",
+      collegeName:
+        matchText(/(?:College|Institute|Institute Name|College Name)\s*:\s*([^:\n\r\t]+)/i) ||
+        "N/A",
+      course:
+        matchText(/(?:Programme|Program|Course|Branch)\s*:\s*([^:\n\r\t]+)/i) ||
+        "N/A",
+      semester: String(semester),
+    };
+
+    const subjects = filteredRows.map((row) => ({
+      code: row.papercode || "",
+      name: row.papername || "",
+      maxMarks: row.maxmarks != null ? Number(row.maxmarks) : 40,
+      internal: row.marks != null ? String(row.marks) : "-",
+      external: "-",
+      total: "-",
+      grade: "-",
+    }));
+
+    console.log("[portal:fetch-internals] success", {
+      semester,
+      subjects: subjects.length,
+    });
+
+    return {
+      student,
+      summary: {
+        sgpa: "-",
+        cgpa: "-",
+        totalCredits: "-",
+        status: "Internal Only",
+      },
+      subjects,
+    };
   } catch (error) {
     if (error.statusCode) throw error;
     throw normalizePortalError(error);

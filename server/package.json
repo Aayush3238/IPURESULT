@@ -6,9 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node index.js",
-    "start": "node index.js",
-    "parse:internals": "node scripts/parseInternals.js",
-    "import:internals": "node scripts/importInternalsToMongo.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "axios": "^1.16.1",
@@ -17,8 +15,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "mongodb": "^7.2.0",
-    "pdf-parse": "^2.4.5",
     "tough-cookie": "^6.0.1"
   }
 }

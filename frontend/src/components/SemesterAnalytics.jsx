@@ -137,6 +137,7 @@ export default function SemesterAnalytics({ analytics, insights }) {
     areaData,
     highestSubject,
     weakestSubject,
+    sgpa,
   } = analytics;
 
   return (
@@ -154,7 +155,7 @@ export default function SemesterAnalytics({ analytics, insights }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <StatCard icon={Target} label="Percentage" value={`${percentage}%`} color="from-accent/20 to-accent/5" delay={0.05} />
+        <StatCard icon={Target} label="SGPA" value={sgpa || "0.00"} color="from-accent/20 to-accent/5" delay={0.05} />
         <StatCard icon={BarChart3} label="Avg Marks" value={avgMarks} color="from-cyan/20 to-cyan/5" delay={0.1} />
         <StatCard icon={TrendingUp} label="Total Score" value={`${totalMarks}`} color="from-success/20 to-success/5" delay={0.15} />
         <StatCard icon={Shield} label="Pass / Total" value={`${passCount}/${totalSubjects}`} color="from-warning/20 to-warning/5" delay={0.2} />

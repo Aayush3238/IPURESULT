@@ -1,40 +1,20 @@
 import { Router } from "express";
-import { fetchCaptcha, loginToPortal, fetchResultForSemester } from "../services/ggsipuClient.js";
-import { fetchInternalMarks } from "../services/ggsipuPortalService.js";
+import {
+  fetchCaptcha,
+  loginToPortal,
+  fetchResultForSemester,
+  fetchInternalMarksForSemester,
+} from "../services/ggsipuClient.js";
 import { getPortalSession } from "../services/sessionStore.js";
 import { createHttpError } from "../utils/errors.js";
 
 const router = Router();
 
 async function fetchInternalsAsResult(portalSessionId, semester) {
-  const internalData = await fetchInternalMarks({
-    sessionId: portalSessionId,
+  return fetchInternalMarksForSemester({
+    portalSessionId,
     semester: String(semester),
   });
-
-  return {
-    student: {
-      name: internalData.studentName || "Student",
-      enrollmentNumber: internalData.enrollmentNo || "",
-      collegeName: internalData.collegeName || "N/A",
-      course: internalData.course || "N/A",
-      semester: String(semester),
-    },
-    summary: {
-      sgpa: "-",
-      cgpa: "-",
-      totalCredits: "-",
-      status: "Internal Only",
-    },
-    subjects: (internalData.subjects || []).map((sub) => ({
-      code: sub.paperCode,
-      name: sub.paperName,
-      internal: sub.internalMarks != null ? String(sub.internalMarks) : "-",
-      external: "-",
-      total: "-",
-      grade: "-",
-    })),
-  };
 }
 
 router.get("/captcha", async (_req, res, next) => {
@@ -71,6 +51,7 @@ router.get("/semester/:semester", async (req, res, next) => {
   try {
     const { semester } = req.params;
     const portalSessionId = req.query.portalSessionId || req.headers["x-portal-session-id"];
+    const internalsOnly = String(req.query.internalsOnly || "").toLowerCase() === "true";
     const semStr = String(semester).trim();
 
     if (!portalSessionId) {
@@ -96,8 +77,8 @@ router.get("/semester/:semester", async (req, res, next) => {
     }
 
     let resultData;
-    if (isNextSemester) {
-      console.log(`[api:result:semester] Next semester ${semStr} requested. Fetching internal marks directly...`);
+    if (internalsOnly || isNextSemester) {
+      console.log(`[api:result:semester] Fetching live internal marks for semester ${semStr}...`);
       resultData = await fetchInternalsAsResult(portalSessionId, semStr);
     } else {
       try {

@@ -24,8 +24,10 @@ import SummaryCards from "../components/SummaryCards.jsx";
 import SemesterAnalytics from "../components/SemesterAnalytics.jsx";
 import OverallAnalytics from "../components/OverallAnalytics.jsx";
 import AnalyticsLoadingSkeleton from "../components/AnalyticsLoadingSkeleton.jsx";
+import GradePointCard from "../components/GradePointCard.jsx";
 import { errorMessages } from "../data/mockResult.js";
 import { computeSemesterAnalytics, computeOverallAnalytics, getInsights } from "../utils/analytics.js";
+import { estimateCredits, normalizeResult } from "../utils/grading.js";
 import LandingPage from "./LandingPage.jsx";
 import ResourcesPage from "./ResourcesPage.jsx";
 
@@ -35,32 +37,6 @@ const initialFormValues = {
   password: "",
   captcha: "",
 };
-
-function estimateCredits(subjectCode, subjectName) {
-  const code = String(subjectCode || "").toUpperCase();
-  const name = String(subjectName || "").toLowerCase();
-  
-  if (name.includes("lab") || name.includes("practical") || name.includes("viva") || name.includes("workshop")) {
-    return 1;
-  }
-  
-  const match = code.match(/[A-Z]+(\d+)/);
-  if (match) {
-    const numStr = match[1];
-    if (numStr.length === 3) {
-      const middleDigit = parseInt(numStr[1], 10);
-      if (middleDigit === 5 || middleDigit === 6) {
-        return 1;
-      }
-    }
-  }
-  
-  if (name.includes("technical writing") || name.includes("ethics") || name.includes("values") || code.startsWith("HS")) {
-    return 2;
-  }
-  
-  return 4;
-}
 
 /* ────────── Background Effects ────────── */
 
@@ -203,20 +179,8 @@ function InternalMarksLookup({ defaultEnrollment }) {
 
     setStatus("loading");
 
-    try {
-      const response = await fetch(`${API_BASE}/api/internals/${encodeURIComponent(trimmed)}`);
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload?.error?.message || "Unable to fetch internal marks.");
-      }
-
-      setStudent(payload.student);
-      setStatus("success");
-    } catch (error) {
-      setMessage(error.message || "Unable to fetch internal marks.");
-      setStatus("error");
-    }
+    setMessage("Internal marks are fetched only through the live GGSIPU portal login.");
+    setStatus("error");
   }
 
   const subjects = student?.subjects || [];
@@ -365,7 +329,7 @@ function PortalChoice({ onOpenInternals }) {
       <div className="grid gap-4">
         <PortalOptionCard
           title="Internal Marks"
-          description="Enter your enrollment number and fetch your internal assessment marks from the uploaded university data."
+          description="Login to the GGSIPU portal and fetch internal assessment marks directly."
           icon={GraduationCap}
           buttonLabel="Open Internal Marks"
           status="Live"
@@ -406,7 +370,7 @@ function InternalMarksPage({ defaultEnrollment, onBack }) {
         </div>
         <h2 className="font-heading text-base font-bold text-white">Ready for Internals</h2>
         <p className="mt-2 text-sm leading-6 text-navy-200">
-          This section is active. Use a valid 10-12 digit enrollment number to fetch the marks stored from the parsed PDF.
+          Internal marks are fetched directly from the GGSIPU student portal after login.
         </p>
         <div className="mt-4 rounded-xl border border-navy-600/50 bg-navy-800/30 p-3 text-xs leading-5 text-navy-200">
           Result portal login is temporarily hidden until the live result flow is ready.
@@ -785,7 +749,7 @@ export default function ResultPage() {
       return;
     }
 
-    if (semesterCache[semesterValue]) {
+    if (activeService !== "internals" && semesterCache[semesterValue]) {
       setResult(semesterCache[semesterValue]);
       setStatus("success");
       return;
@@ -796,9 +760,9 @@ export default function ResultPage() {
 
     try {
       if (activeService === "internals") {
-        const params = new URLSearchParams({ sessionId: portalSessionId, semester: semesterValue });
+        const params = new URLSearchParams({ portalSessionId, internalsOnly: "true" });
         const response = await fetch(
-          `${API_BASE}/api/internals/live?${params}`
+          `${API_BASE}/api/result/semester/${encodeURIComponent(semesterValue)}?${params}`
         );
         const payload = await response.json();
 
@@ -817,26 +781,19 @@ export default function ResultPage() {
           throw new Error(payload?.error?.message || "Unable to fetch live internal marks.");
         }
 
-        const fetchedResult = {
+        const fetchedResult = normalizeResult({
+          ...payload,
           student: {
-            name: payload.data.studentName,
-            enrollmentNumber: payload.data.enrollmentNo,
-            semester: semesterLabel || semesterValue,
+            ...payload.student,
+            enrollmentNumber:
+              payload.student?.enrollmentNumber || values.enrollmentNumber.trim(),
+            semester: payload.student?.semester || semesterLabel || semesterValue,
           },
-          subjects: (payload.data.subjects || []).map((sub) => ({
-            code: sub.paperCode,
-            name: sub.paperName,
-            internal: sub.internalMarks != null ? String(sub.internalMarks) : "-",
-            maxMarks: sub.maxMarks,
-            external: "-",
-            total: "-",
-            grade: "-",
-          })),
-        };
+          subjects: payload.subjects || [],
+        });
 
         setStatus("success");
         setResult(fetchedResult);
-        setSemesterCache((prev) => ({ ...prev, [semesterValue]: fetchedResult }));
       } else {
         const params = new URLSearchParams({ portalSessionId });
         const response = await fetch(
@@ -859,7 +816,7 @@ export default function ResultPage() {
           throw new Error(payload?.error?.message || errorMessages.generic);
         }
 
-        const fetchedResult = {
+        const fetchedResult = normalizeResult({
           ...payload,
           student: {
             ...payload.student,
@@ -868,7 +825,7 @@ export default function ResultPage() {
             semester: payload.student?.semester || semesterLabel || semesterValue,
           },
           subjects: payload.subjects || [],
-        };
+        });
 
         setStatus("success");
         setResult(fetchedResult);
@@ -1126,7 +1083,13 @@ export default function ResultPage() {
                     </div>
 
                     <StudentInfoCard student={result.student} />
-                    <SummaryCards subjects={result.subjects} />
+                    <SummaryCards subjects={result.subjects} summary={result.summary} />
+                    <GradePointCard 
+                      sgpa={result.summary?.sgpa || "0.00"} 
+                      cgpa={result.summary?.cgpa || "0.00"}
+                      isCGPAMode={false}
+                      delay={0.2}
+                    />
                     <MarksTable subjects={result.subjects} />
 
                     {semesterAnalytics && (

@@ -1,18 +1,21 @@
+import { calculateCgpa, normalizeResult } from "./grading.js";
+
 export function computeSemesterAnalytics(result) {
   if (!result?.subjects?.length || !result?.summary) return null;
 
-  const { subjects } = result;
+  const normalizedResult = normalizeResult(result);
+  const { subjects } = normalizedResult;
 
   const totalMarks = subjects.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   const maxPossible = subjects.length * 100;
-  const percentage = maxPossible > 0 ? ((totalMarks / maxPossible) * 100).toFixed(1) : "0.0";
+  const percentage = normalizedResult.summary?.percentage || (maxPossible > 0 ? ((totalMarks / maxPossible) * 100).toFixed(1) : "0.0");
   const avgMarks = subjects.length > 0 ? (totalMarks / subjects.length).toFixed(1) : "0.0";
 
   const sorted = [...subjects].sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
   const highestSubject = sorted[0] || null;
   const weakestSubject = sorted[sorted.length - 1] || null;
 
-  const passCount = subjects.filter((s) => s.grade && !s.grade.startsWith("F")).length;
+  const passCount = subjects.filter((s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")).length;
   const failCount = subjects.length - passCount;
 
   const gradeDistribution = {};
@@ -68,6 +71,8 @@ export function computeSemesterAnalytics(result) {
     barData,
     subjectTrend,
     areaData,
+    sgpa: normalizedResult.summary?.sgpa || "0.00",
+    totalCredits: normalizedResult.summary?.totalCredits || 0,
   };
 }
 
@@ -77,7 +82,7 @@ export function computeOverallAnalytics(cache) {
 
   const allResults = entries.map(([sem, data]) => ({
     semester: sem,
-    ...data,
+    ...normalizeResult(data),
   }));
 
   allResults.sort((a, b) => {
@@ -87,15 +92,15 @@ export function computeOverallAnalytics(cache) {
   });
 
   const allSubjects = allResults.flatMap((r) => r.subjects || []);
+  const cgpaData = calculateCgpa(allResults);
 
   const totalMarksAll = allSubjects.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   const maxPossibleAll = allSubjects.length * 100;
-  const overallPercentage =
-    maxPossibleAll > 0 ? ((totalMarksAll / maxPossibleAll) * 100).toFixed(1) : "0.0";
+  const overallPercentage = cgpaData.percentage || (maxPossibleAll > 0 ? ((totalMarksAll / maxPossibleAll) * 100).toFixed(1) : "0.0");
   const overallAvgMarks =
     allSubjects.length > 0 ? (totalMarksAll / allSubjects.length).toFixed(1) : "0.0";
   const overallPassCount = allSubjects.filter(
-    (s) => s.grade && !s.grade.startsWith("F")
+    (s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")
   ).length;
 
   const gradeDist = {};
@@ -136,12 +141,9 @@ export function computeOverallAnalytics(cache) {
   });
 
   const semPercentages = allResults.map((r) => {
-    const subs = r.subjects || [];
-    const total = subs.reduce((s, sub) => s + (Number(sub.total) || 0), 0);
-    const max = subs.length * 100;
     return {
       semester: `Sem ${r.semester}`,
-      percentage: max > 0 ? parseFloat(((total / max) * 100).toFixed(1)) : 0,
+      percentage: parseFloat(((Number(r.summary?.sgpa) || 0) * 10).toFixed(1)),
     };
   });
 
@@ -169,10 +171,7 @@ export function computeOverallAnalytics(cache) {
 
   const strongestSemester = allResults.reduce(
     (best, r) => {
-      const subs = r.subjects || [];
-      const total = subs.reduce((s, sub) => s + (Number(sub.total) || 0), 0);
-      const max = subs.length * 100;
-      const pct = max > 0 ? (total / max) * 100 : 0;
+      const pct = (Number(r.summary?.sgpa) || 0) * 10;
       return pct > best.percentage
         ? { semester: r.semester, percentage: parseFloat(pct.toFixed(1)) }
         : best;
@@ -182,10 +181,7 @@ export function computeOverallAnalytics(cache) {
 
   const weakestSemester = allResults.reduce(
     (worst, r) => {
-      const subs = r.subjects || [];
-      const total = subs.reduce((s, sub) => s + (Number(sub.total) || 0), 0);
-      const max = subs.length * 100;
-      const pct = max > 0 ? (total / max) * 100 : 0;
+      const pct = (Number(r.summary?.sgpa) || 0) * 10;
       return pct < worst.percentage || worst.percentage === 0
         ? { semester: r.semester, percentage: parseFloat(pct.toFixed(1)) }
         : worst;
@@ -223,6 +219,8 @@ export function computeOverallAnalytics(cache) {
     improvementTrend,
     internalDominant,
     totalMarksAll,
+    cgpa: cgpaData.cgpa,
+    totalCredits: cgpaData.totalCredits,
   };
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { BadgeCheck, BookOpen, Target, Trophy } from "lucide-react";
+import { calculateSemesterGrades } from "../utils/grading.js";
 
 function useCountUp(target, duration = 800) {
   const [count, setCount] = useState(0);
@@ -7,6 +8,8 @@ function useCountUp(target, duration = 800) {
 
   useEffect(() => {
     const num = parseFloat(target);
+    const decimalPlaces = String(target).split(".")[1]?.length || 0;
+    const precision = Math.min(Math.max(decimalPlaces, 1), 2);
     if (isNaN(num)) {
       setCount(target);
       return;
@@ -20,7 +23,7 @@ function useCountUp(target, duration = 800) {
       const eased = 1 - Math.pow(1 - progress, 3);
       const current = num * eased;
 
-      setCount(Number.isInteger(num) ? Math.round(current) : current.toFixed(1));
+      setCount(Number.isInteger(num) ? Math.round(current) : current.toFixed(precision));
 
       if (progress < 1) {
         ref.current = requestAnimationFrame(tick);
@@ -52,11 +55,12 @@ function SummaryCard({ label, icon: Icon, gradient, iconColor, valueColor, value
   );
 }
 
-export default function SummaryCards({ subjects }) {
+export default function SummaryCards({ subjects, summary }) {
+  const semesterGrades = calculateSemesterGrades(subjects);
   const totalMarks = subjects.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   const maxPossible = subjects.length * 100;
-  const percentage = maxPossible > 0 ? ((totalMarks / maxPossible) * 100).toFixed(1) : "0.0";
-  const passCount = subjects.filter((s) => s.grade && !s.grade.startsWith("F")).length;
+  const sgpa = summary?.sgpa || semesterGrades.sgpa;
+  const passCount = subjects.filter((s) => s.grade && s.grade !== "-" && !s.grade.startsWith("F")).length;
 
   const cards = [
     {
@@ -70,24 +74,24 @@ export default function SummaryCards({ subjects }) {
       suffix: `/${maxPossible}`,
     },
     {
-      key: "percentage",
-      label: "Percentage",
+      key: "sgpa",
+      label: "SGPA",
       icon: Target,
       gradient: "from-cyan/20 to-cyan/5",
       iconColor: "text-cyan-light",
       valueColor: "text-cyan-light",
-      value: parseFloat(percentage),
-      suffix: "%",
+      value: Number(sgpa),
+      suffix: "",
     },
     {
-      key: "passed",
-      label: "Subjects Passed",
+      key: "credits",
+      label: "Total Credits",
       icon: BookOpen,
       gradient: "from-success/20 to-success/5",
       iconColor: "text-success-light",
       valueColor: "text-success-light",
-      value: passCount,
-      suffix: `/${subjects.length}`,
+      value: summary?.totalCredits || semesterGrades.totalCredits,
+      suffix: "",
     },
     {
       key: "status",

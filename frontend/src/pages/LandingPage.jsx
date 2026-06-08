@@ -578,7 +578,7 @@ export default function LandingPage({ onOpenInternals, onOpenResults, onOpenReso
                   <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400">Live</span>
                 </div>
                 <p className="mt-3 text-xs leading-relaxed text-navy-300">
-                  Search internal assessment marks. Enter your roll number to fetch the marks stored from the parsed university database.
+                  Login through the GGSIPU portal to fetch internal assessment marks directly from the university system.
                 </p>
               </div>
               <button

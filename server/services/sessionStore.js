@@ -34,13 +34,14 @@ export function deleteSession(sessionId) {
   captchaSessions.delete(sessionId);
 }
 
-export function createPortalSession({ jar, semesters, formDetails }) {
+export function createPortalSession({ jar, semesters, formDetails, enrollment }) {
   cleanup();
   const portalSessionId = crypto.randomUUID();
   portalSessions.set(portalSessionId, {
     jar,
     semesters,
     formDetails,
+    enrollment,
     createdAt: Date.now(),
     expiresAt: Date.now() + SESSION_TTL_MS,
   });

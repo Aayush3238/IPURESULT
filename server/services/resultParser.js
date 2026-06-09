@@ -156,15 +156,41 @@ function extractGenericTables($) {
   return tables;
 }
 
-export function detectPortalFailure(html) {
+export function detectPortalFailure(html, isLogin = false) {
   const $ = cheerio.load(html || "");
   const text = cleanText($.text()).toLowerCase();
 
-  if ($("#loginForm").length || $("input[name='captcha']").length) {
-    if (text.includes("captcha")) {
-      return createHttpError(400, "INVALID_CAPTCHA", "Invalid captcha. Refresh and try again.");
-    }
+  // Extract text inside all script tags to find JS alert/redirect messages
+  let scriptText = "";
+  $("script").each((_i, el) => {
+    scriptText += $(el).html() || "";
+  });
+  const scriptTextLower = cleanText(scriptText).toLowerCase();
 
+  const combinedText = `${text} ${scriptTextLower}`;
+
+  // 1. Check for explicit session issues
+  if (combinedText.includes("session expired") || combinedText.includes("session timeout")) {
+    return createHttpError(440, "SESSION_EXPIRED", "Session expired. Refresh captcha and try again.");
+  }
+
+  // 2. Check for explicit credentials failure messages
+  if (
+    combinedText.includes("invalid username") ||
+    combinedText.includes("invalid password") ||
+    combinedText.includes("invalid user") ||
+    combinedText.includes("wrong password") ||
+    combinedText.includes("login fails") ||
+    combinedText.includes("login failed") ||
+    combinedText.includes("authentication failed") ||
+    combinedText.includes("username/password is incorrect") ||
+    combinedText.includes("incorrect username") ||
+    combinedText.includes("incorrect password") ||
+    combinedText.includes("username or password") ||
+    combinedText.includes("wrong username") ||
+    combinedText.includes("wrong roll number") ||
+    combinedText.includes("invalid roll number")
+  ) {
     return createHttpError(
       401,
       "INVALID_CREDENTIALS",
@@ -172,40 +198,50 @@ export function detectPortalFailure(html) {
     );
   }
 
+  // 3. Check for explicit captcha failure messages
   if (
-    text.includes("invalid captcha") ||
-    text.includes("captcha does not") ||
-    text.includes("captcha validation fails") ||
-    text.includes("captcha validation failed")
+    combinedText.includes("invalid captcha") ||
+    combinedText.includes("captcha does not") ||
+    combinedText.includes("captcha validation fails") ||
+    combinedText.includes("captcha validation failed") ||
+    combinedText.includes("captcha code does not match") ||
+    combinedText.includes("wrong captcha") ||
+    combinedText.includes("incorrect captcha") ||
+    combinedText.includes("captcha incorrect") ||
+    combinedText.includes("captcha code incorrect")
   ) {
     return createHttpError(400, "INVALID_CAPTCHA", "Invalid captcha. Refresh and try again.");
   }
 
-  if (
-    text.includes("invalid username") ||
-    text.includes("invalid password") ||
-    text.includes("invalid user") ||
-    text.includes("wrong password") ||
-    text.includes("login fails") ||
-    text.includes("login failed") ||
-    text.includes("authentication failed")
-  ) {
-    return createHttpError(
-      401,
-      "INVALID_CREDENTIALS",
-      "Invalid enrollment number or password."
-    );
-  }
-
-  if (text.includes("session expired") || text.includes("session timeout")) {
-    return createHttpError(440, "SESSION_EXPIRED", "Session expired. Refresh captcha and try again.");
-  }
-
-  if (text.includes("user is not authorized") || text.includes("access denied")) {
+  // 4. Check for authorization failure messages
+  if (combinedText.includes("user is not authorized") || combinedText.includes("access denied")) {
     return createHttpError(
       403,
       "PORTAL_ACCESS_DENIED",
       "The portal rejected access for this account."
+    );
+  }
+
+  // 5. Fallback if the login form is present in the response
+  if ($("#loginForm").length || $("input[name='captcha']").length) {
+    // If this happened outside of the login flow, it means the session expired and redirected to login page.
+    if (!isLogin) {
+      return createHttpError(440, "SESSION_EXPIRED", "Session expired. Please login again.");
+    }
+
+    // Otherwise, this is a failed login attempt. Check if there is a captcha-related error.
+    if (
+      combinedText.includes("captcha code") && 
+      (combinedText.includes("wrong") || combinedText.includes("invalid") || combinedText.includes("match") || combinedText.includes("incorrect"))
+    ) {
+      return createHttpError(400, "INVALID_CAPTCHA", "Invalid captcha. Refresh and try again.");
+    }
+
+    // Default fallback: assume invalid credentials since wrong username/password redirects back to login page
+    return createHttpError(
+      401,
+      "INVALID_CREDENTIALS",
+      "Invalid enrollment number or password."
     );
   }
 

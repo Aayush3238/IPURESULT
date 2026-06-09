@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import resultRouter from "./routes/result.js";
+import studentRouter from "./routes/student.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -33,6 +34,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api/result", resultRouter);
+app.use("/api/student", studentRouter);
 
 const frontendDist = path.resolve(__dirname, "../frontend/dist");
 app.use(express.static(frontendDist));

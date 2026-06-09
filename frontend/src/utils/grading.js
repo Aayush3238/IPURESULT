@@ -1,11 +1,11 @@
 export function gradeFromMarks(totalMarks) {
-  const marks = Number(totalMarks);
-  if (!Number.isFinite(marks)) return "-";
+  const marks = Math.round(Number(totalMarks));
+  if (isNaN(marks)) return "-";
 
   if (marks >= 90) return "O";
-  if (marks >= 75) return "A+";
-  if (marks >= 65) return "A";
-  if (marks >= 55) return "B+";
+  if (marks >= 80) return "A+";
+  if (marks >= 70) return "A";
+  if (marks >= 60) return "B+";
   if (marks >= 50) return "B";
   if (marks >= 45) return "C";
   if (marks >= 40) return "P";
@@ -56,25 +56,45 @@ export function estimateCredits(subjectCode, subjectName) {
 export function getSubjectCredits(subject) {
   const credits = Number(subject?.credits ?? subject?.credit);
   if (Number.isFinite(credits) && credits > 0) return credits;
-  return estimateCredits(subject?.code, subject?.name);
+  return estimateCredits(subject?.code || subject?.paperCode, subject?.name || subject?.subjectName);
 }
 
 export function normalizeSubject(subject) {
-  const total = Number(subject?.total);
-  const internal = Number(subject?.internal);
-  const external = Number(subject?.external);
+  const code = subject?.code || subject?.paperCode || "";
+  const name = subject?.name || subject?.subjectName || "";
+  
+  let internalVal = subject?.internal;
+  if (internalVal === undefined && subject?.internalMarks !== undefined) {
+    internalVal = String(subject.internalMarks);
+  }
+  let externalVal = subject?.external;
+  if (externalVal === undefined && subject?.externalMarks !== undefined) {
+    externalVal = String(subject.externalMarks);
+  }
+  let totalVal = subject?.total;
+  if (totalVal === undefined && subject?.totalMarks !== undefined) {
+    totalVal = String(subject.totalMarks);
+  }
+
+  const total = Number(totalVal);
+  const internal = Number(internalVal);
+  const external = Number(externalVal);
   const computedTotal =
     Number.isFinite(total)
       ? total
       : Number.isFinite(internal) && Number.isFinite(external)
         ? internal + external
-        : subject?.total;
+        : totalVal;
   const grade = gradeFromMarks(computedTotal);
   const credits = getSubjectCredits(subject);
 
   return {
     ...subject,
-    total: Number.isFinite(Number(computedTotal)) ? String(computedTotal) : subject?.total || "-",
+    code,
+    name,
+    internal: internalVal || "-",
+    external: externalVal || "-",
+    total: Number.isFinite(Number(computedTotal)) ? String(computedTotal) : totalVal || "-",
     grade: grade === "-" ? subject?.grade || "-" : grade,
     gradePoint: gradePointFromGrade(grade),
     credits,
@@ -109,15 +129,29 @@ export function normalizeResult(result) {
   if (!result) return result;
 
   const semesterGrades = calculateSemesterGrades(result.subjects || []);
+  
+  const officialSgpa = result.summary?.sgpa;
+  const hasOfficialSgpa = 
+    officialSgpa && 
+    officialSgpa !== "-" && 
+    officialSgpa !== "0" && 
+    officialSgpa !== "0.0" && 
+    officialSgpa !== "0.00" && 
+    officialSgpa !== "";
+
+  const sgpaValue = hasOfficialSgpa ? String(officialSgpa) : semesterGrades.sgpa;
+
   return {
     ...result,
     subjects: semesterGrades.subjects,
     summary: {
       ...result.summary,
-      sgpa: semesterGrades.sgpa,
-      totalCredits: semesterGrades.totalCredits,
+      sgpa: sgpaValue,
+      totalCredits: result.summary?.totalCredits && result.summary.totalCredits !== "-" && result.summary.totalCredits !== ""
+        ? result.summary.totalCredits 
+        : semesterGrades.totalCredits,
       creditPoints: semesterGrades.creditPoints,
-      percentage: (Number(semesterGrades.sgpa) * 10).toFixed(1),
+      percentage: (Number(sgpaValue) * 10).toFixed(1),
     },
   };
 }

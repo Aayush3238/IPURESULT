@@ -62,6 +62,9 @@ export default function ResultForm({
             value={values.password}
             onChange={onChange}
           />
+          <p className="mt-1.5 text-[10.5px] text-navy-300 leading-normal">
+            For first-time students, the default password is often your <strong>father's name in CAPITAL LETTERS</strong> (exactly as registered in university records, with spaces).
+          </p>
           <FieldError>{errors.password}</FieldError>
         </label>
 

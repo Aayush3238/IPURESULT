@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import axios from "axios";
 import { wrapper } from "axios-cookiejar-support";
 import * as cheerio from "cheerio";
@@ -11,6 +12,8 @@ import {
   getPortalSession,
 } from "./sessionStore.js";
 import { detectPortalFailure } from "./resultParser.js";
+import { parseProfileHtml } from "./profileParser.js";
+import { calculateSGPA } from "./sgpaEngine.js";
 import { createHttpError, normalizePortalError } from "../utils/errors.js";
 
 const PORTAL_BASE_URL = process.env.GGSIPU_PORTAL_BASE_URL || "https://examweb.ggsipu.ac.in/web";
@@ -143,7 +146,7 @@ function transformResultJson(data, semester) {
     semester: semester || "",
   };
 
-  const subjects = rows.map((row) => {
+  const parsedSubjects = rows.map((row) => {
     const internal = Number(row[3]);
     const external = Number(row[4]);
     const total =
@@ -152,7 +155,6 @@ function transformResultJson(data, semester) {
         : Number.isFinite(internal) && Number.isFinite(external)
           ? internal + external
           : null;
-    const computedGrade = gradeFromMarks(total);
 
     return {
       code: row[1] || "",
@@ -160,19 +162,27 @@ function transformResultJson(data, semester) {
       internal: row[3] != null ? String(row[3]) : "-",
       external: row[4] != null ? String(row[4]) : "-",
       total: Number.isFinite(total) ? String(total) : "-",
-      grade: computedGrade,
       credits: row.credit || row.credits || row[7] || row[0] || undefined,
     };
   });
 
+  const engineResult = calculateSGPA(parsedSubjects);
+
   const summary = {
-    sgpa: report.sgpa || report.SGPA || "",
+    sgpa: report.sgpa || report.SGPA || String(engineResult.sgpa) || "",
     cgpa: report.cgpa || report.CGPA || "",
-    totalCredits: report.totalCredits || report.credits || "",
-    status: report.status || report.Result || (subjects.length ? "Available" : ""),
+    totalCredits: report.totalCredits || report.credits || String(engineResult.creditTotal) || "",
+    status: report.status || report.Result || (engineResult.subjectBreakdown.length ? "Available" : ""),
+    weightedPoints: engineResult.weightedPoints,
+    sgpaEngine: {
+      sgpa: engineResult.sgpa,
+      creditTotal: engineResult.creditTotal,
+      weightedPoints: engineResult.weightedPoints,
+      subjectBreakdown: engineResult.subjectBreakdown
+    }
   };
 
-  return { student, summary, subjects };
+  return { student, summary, subjects: engineResult.subjectBreakdown };
 }
 
 export async function fetchCaptcha() {
@@ -232,7 +242,7 @@ export async function loginToPortal({ sessionId, enrollment, password, captcha }
     deleteSession(sessionId);
 
     const html = String(loginResponse.data || "");
-    const failure = detectPortalFailure(html);
+    const failure = detectPortalFailure(html, true);
     if (failure) throw failure;
 
     const finalUrl = loginResponse.request?.res?.responseUrl || "";
@@ -250,6 +260,7 @@ export async function loginToPortal({ sessionId, enrollment, password, captcha }
     const portalSessionId = createPortalSession({
       jar: session.jar,
       semesters,
+      enrollment,
     });
 
     console.log("[portal:login] success", {
@@ -290,7 +301,7 @@ export async function fetchResultForSemester({ portalSessionId, semester }) {
       data = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
     } catch {
       const html = String(response.data || "");
-      const failure = detectPortalFailure(html);
+      const failure = detectPortalFailure(html, false);
       if (failure) throw failure;
 
       console.error("[portal:fetch-result] Response is not JSON:", {
@@ -309,7 +320,41 @@ export async function fetchResultForSemester({ portalSessionId, semester }) {
       hasReport: !!data.report,
     });
 
-    return transformResultJson(data, semester);
+    const result = transformResultJson(data, semester);
+
+    let profileData = null;
+    if (portalSession.profileCache) {
+      profileData = portalSession.profileCache.data;
+    } else {
+      try {
+        console.log("[portal:fetch-result] Profile not cached, fetching profile first to populate info...");
+        profileData = await fetchStudentProfile({ portalSessionId });
+      } catch (profileErr) {
+        console.error("[portal:fetch-result] Failed to fetch profile fallback info:", profileErr.message);
+      }
+    }
+
+    if (profileData) {
+      if (!result.student.name && profileData.studentName) {
+        result.student.name = profileData.studentName;
+      }
+      if ((!result.student.collegeName || result.student.collegeName === "N/A" || result.student.collegeName === "") && profileData.institute) {
+        result.student.collegeName = profileData.institute;
+      }
+      if ((!result.student.course || result.student.course === "N/A" || result.student.course === "") && profileData.program) {
+        result.student.course = profileData.program;
+      }
+
+      result.student.fatherName = profileData.fatherName || "";
+      result.student.motherName = profileData.motherName || "";
+      result.student.email = profileData.email || "";
+      result.student.contactNumber = profileData.contactNumber || "";
+      result.student.gender = profileData.gender || "";
+      result.student.admissionYear = profileData.admissionYear || "";
+      result.student.batch = profileData.batch || "";
+    }
+
+    return result;
   } catch (error) {
     if (error.statusCode) throw error;
     throw normalizePortalError(error);
@@ -345,7 +390,7 @@ export async function fetchInternalMarksForSemester({ portalSessionId, semester 
       rows = typeof marksResponse.data === "string" ? JSON.parse(marksResponse.data) : marksResponse.data;
     } catch {
       const html = String(marksResponse.data || "");
-      const failure = detectPortalFailure(html);
+      const failure = detectPortalFailure(html, false);
       if (failure) throw failure;
 
       throw createHttpError(
@@ -389,6 +434,38 @@ export async function fetchInternalMarksForSemester({ portalSessionId, semester 
       semester: String(semester),
     };
 
+    let profileData = null;
+    if (portalSession.profileCache) {
+      profileData = portalSession.profileCache.data;
+    } else {
+      try {
+        console.log("[portal:fetch-internals] Profile not cached, fetching profile first to populate info...");
+        profileData = await fetchStudentProfile({ portalSessionId });
+      } catch (profileErr) {
+        console.error("[portal:fetch-internals] Failed to fetch profile fallback info:", profileErr.message);
+      }
+    }
+
+    if (profileData) {
+      if ((!student.name || student.name === "Student" || student.name === "") && profileData.studentName) {
+        student.name = profileData.studentName;
+      }
+      if ((!student.collegeName || student.collegeName === "N/A" || student.collegeName === "") && profileData.institute) {
+        student.collegeName = profileData.institute;
+      }
+      if ((!student.course || student.course === "N/A" || student.course === "") && profileData.program) {
+        student.course = profileData.program;
+      }
+
+      student.fatherName = profileData.fatherName || "";
+      student.motherName = profileData.motherName || "";
+      student.email = profileData.email || "";
+      student.contactNumber = profileData.contactNumber || "";
+      student.gender = profileData.gender || "";
+      student.admissionYear = profileData.admissionYear || "";
+      student.batch = profileData.batch || "";
+    }
+
     const subjects = filteredRows.map((row) => ({
       code: row.papercode || "",
       name: row.papername || "",
@@ -414,6 +491,56 @@ export async function fetchInternalMarksForSemester({ portalSessionId, semester 
       },
       subjects,
     };
+  } catch (error) {
+    if (error.statusCode) throw error;
+    throw normalizePortalError(error);
+  }
+}
+
+const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+export async function fetchStudentProfile({ portalSessionId }) {
+  const portalSession = getPortalSession(portalSessionId);
+
+  if (!portalSession) {
+    throw createHttpError(440, "SESSION_EXPIRED", "Portal session expired. Please login again.");
+  }
+
+  const now = Date.now();
+  if (
+    portalSession.profileCache &&
+    now - portalSession.profileCache.cachedAt < PROFILE_CACHE_TTL_MS
+  ) {
+    console.log("[portal:profile] Returning cached student profile.");
+    return portalSession.profileCache.data;
+  }
+
+  const client = createPortalClient(portalSession.jar);
+
+  try {
+    console.log("[portal:fetch-profile] Fetching profile.jsp...");
+    const response = await client.get("/student/profile.jsp");
+
+    const html = String(response.data || "");
+    const failure = detectPortalFailure(html, false);
+    if (failure) throw failure;
+
+    const fallbackEnrollment = portalSession.enrollment || "";
+    const profileData = parseProfileHtml(html, fallbackEnrollment);
+
+    if (profileData.photoUrl && !profileData.photoUrl.startsWith("data:")) {
+      profileData.photoUrl = `/api/student/photo?portalSessionId=${encodeURIComponent(
+        portalSessionId
+      )}&imgUrl=${encodeURIComponent(profileData.photoUrl)}`;
+    }
+
+    portalSession.profileCache = {
+      data: profileData,
+      cachedAt: now,
+    };
+
+    console.log("[portal:fetch-profile] success for enrollment:", profileData.enrollmentNo);
+    return profileData;
   } catch (error) {
     if (error.statusCode) throw error;
     throw normalizePortalError(error);

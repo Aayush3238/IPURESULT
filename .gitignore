@@ -3,7 +3,6 @@ dist/
 .env
 .env.local
 .env.*.local
-server/data/*.json
 server/data/*.pdf
 *.log
 flag_im_debug.json

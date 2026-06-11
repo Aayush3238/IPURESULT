@@ -19,7 +19,7 @@ import { createHttpError, normalizePortalError } from "../utils/errors.js";
 const PORTAL_BASE_URL = process.env.GGSIPU_PORTAL_BASE_URL || "https://examweb.ggsipu.ac.in/web";
 const LOGIN_PATH = "/login.jsp";
 const RESULT_PATH = process.env.GGSIPU_RESULT_PATH || "/StudentSearchProcess";
-const REQUEST_TIMEOUT_MS = Number(process.env.GGSIPU_REQUEST_TIMEOUT_MS || 20000);
+const REQUEST_TIMEOUT_MS = Number(process.env.GGSIPU_REQUEST_TIMEOUT_MS || 60000);
 
 function createPortalClient(jar) {
   return wrapper(

@@ -13,11 +13,12 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "framer-motion": "latest",
+    "lucide-react": "latest",
+    "pdf-parse": "^2.4.5",
     "react": "latest",
     "react-dom": "latest",
-    "framer-motion": "latest",
-    "lucide-react": "latest"
+    "vite": "latest"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",

@@ -1,4 +1,4 @@
-import { RefreshCw, LogIn, Loader2 } from "lucide-react";
+import { RefreshCw, LogIn, Loader2, Lock } from "lucide-react";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-navy-600 bg-navy-800/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-navy-400 focus:border-accent focus:ring-4 focus:ring-accent/20 focus:bg-navy-800";
@@ -19,6 +19,8 @@ export default function ResultForm({
   onChange,
   onSubmit,
   onRefreshCaptcha,
+  captchaUnlocked,
+  onUnlockCaptcha,
 }) {
   return (
     <form
@@ -72,7 +74,16 @@ export default function ResultForm({
           <span className="text-sm font-semibold text-navy-200">Captcha</span>
           <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
             <div className="flex min-h-[46px] items-center justify-center rounded-xl border border-dashed border-navy-600 bg-navy-800/80 px-4">
-              {captchaImage ? (
+              {!captchaUnlocked ? (
+                <button
+                  type="button"
+                  onClick={onUnlockCaptcha}
+                  className="flex w-full items-center justify-center gap-2 text-sm text-navy-300 outline-none transition hover:text-white"
+                >
+                  <Lock className="h-4 w-4" />
+                  Click here to load captcha
+                </button>
+              ) : captchaImage ? (
                 <img
                   src={captchaImage}
                   alt="Captcha"
@@ -85,8 +96,8 @@ export default function ResultForm({
             <button
               type="button"
               onClick={onRefreshCaptcha}
-              disabled={isCaptchaLoading || isLoading}
-              className="inline-flex h-[46px] w-[46px] items-center justify-center rounded-xl border border-navy-600 text-navy-300 outline-none transition hover:border-navy-500 hover:bg-navy-700/60 hover:text-white focus-visible:ring-4 focus-visible:ring-accent/20"
+              disabled={isCaptchaLoading || isLoading || !captchaUnlocked}
+              className="inline-flex h-[46px] w-[46px] items-center justify-center rounded-xl border border-navy-600 text-navy-300 outline-none transition hover:border-navy-500 hover:bg-navy-700/60 hover:text-white focus-visible:ring-4 focus-visible:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Refresh captcha"
             >
               <RefreshCw className={`h-4 w-4 ${isCaptchaLoading ? "animate-spin-slow" : ""}`} />

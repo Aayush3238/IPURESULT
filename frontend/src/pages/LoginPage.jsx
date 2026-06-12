@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import ResultForm from "../components/ResultForm.jsx";
@@ -27,6 +27,7 @@ export default function LoginPage() {
   const [isCaptchaLoading, setIsCaptchaLoading] = useState(false);
   const [status, setStatus] = useState("idle");
   const [alert, setAlert] = useState("");
+  const [captchaUnlocked, setCaptchaUnlocked] = useState(false);
 
   // Set document title and SEO
   useEffect(() => {
@@ -69,11 +70,10 @@ export default function LoginPage() {
     }
   }
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      refreshCaptcha();
-    }
-  }, [isAuthenticated]);
+  function unlockCaptcha() {
+    setCaptchaUnlocked(true);
+    refreshCaptcha();
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -166,6 +166,8 @@ export default function LoginPage() {
             onChange={handleChange}
             onSubmit={handleLogin}
             onRefreshCaptcha={refreshCaptcha}
+            captchaUnlocked={captchaUnlocked}
+            onUnlockCaptcha={unlockCaptcha}
           />
         </div>
 

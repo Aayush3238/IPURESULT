@@ -210,7 +210,7 @@ export default function ResultsDashboardPage() {
                     </thead>
                     <tbody className="divide-y divide-navy-600/30">
                       {result.subjects.map((subject, index) => {
-                        const credits = estimateCredits(subject.code, subject.name);
+                        const credits = subject.credits ?? estimateCredits(subject.code, subject.name);
                         return (
                           <tr
                             key={subject.code}

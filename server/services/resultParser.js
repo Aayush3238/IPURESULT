@@ -111,6 +111,7 @@ function extractSubjectRows($) {
 
         const code = cellAt(mapped, ["subject code", "paper code", "code"]);
         const name = cellAt(mapped, ["subject name", "paper name", "subject", "paper"]);
+        const credits = cellAt(mapped, ["credit", "credits"]);
         const total = cellAt(mapped, ["total", "total marks"]);
         const grade = cellAt(mapped, ["grade"]);
 
@@ -124,6 +125,7 @@ function extractSubjectRows($) {
           internal: cellAt(mapped, ["internal", "minor"]) || "-",
           external: cellAt(mapped, ["external", "major", "end term"]) || "-",
           total: total || "-",
+          credits: credits || undefined,
           grade: grade || "-",
         });
       });

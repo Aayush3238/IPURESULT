@@ -5,6 +5,8 @@ import ResultForm from "../components/ResultForm.jsx";
 import LoginGuide from "../components/LoginGuide.jsx";
 import ErrorAlert from "../components/ErrorAlert.jsx";
 import { errorMessages } from "../data/mockResult.js";
+import { Info, X } from "lucide-react";
+import { motion } from "framer-motion";
 
 const initialFormValues = {
   enrollmentNumber: "",
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const [status, setStatus] = useState("idle");
   const [alert, setAlert] = useState("");
   const [captchaUnlocked, setCaptchaUnlocked] = useState(false);
+  const [captchaRetryCount, setCaptchaRetryCount] = useState(0);
 
   // Set document title and SEO
   useEffect(() => {
@@ -45,13 +48,16 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, navigate, from]);
 
-  async function refreshCaptcha() {
+  async function refreshCaptcha({ preserveAlert = false } = {}) {
     setIsCaptchaLoading(true);
     setCaptchaImage("");
     setSessionId("");
+    setCaptchaRetryCount(0);
     setValues((current) => ({ ...current, captcha: "" }));
     setErrors((current) => ({ ...current, captcha: "" }));
-    setAlert("");
+    if (!preserveAlert) {
+      setAlert("");
+    }
 
     try {
       const response = await fetch(`${API_BASE}/api/result/captcha`);
@@ -63,6 +69,9 @@ export default function LoginPage() {
 
       setSessionId(payload.sessionId);
       setCaptchaImage(payload.captchaImage);
+      if (payload.retryCount > 0) {
+        setCaptchaRetryCount(payload.retryCount);
+      }
     } catch (error) {
       setAlert(error.message || errorMessages.server);
     } finally {
@@ -143,7 +152,7 @@ export default function LoginPage() {
     } catch (error) {
       setStatus("error");
       setAlert(error.message || errorMessages.generic);
-      refreshCaptcha();
+      refreshCaptcha({ preserveAlert: true });
     }
   }
 
@@ -151,6 +160,29 @@ export default function LoginPage() {
     <div className="space-y-6 animate-fade-in py-4">
       {alert && (
         <ErrorAlert message={alert} onDismiss={() => setAlert("")} />
+      )}
+
+      {captchaRetryCount > 0 && !isCaptchaLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-start gap-3 rounded-xl border border-accent/20 bg-accent/10 p-4 text-accent-light backdrop-blur-sm"
+        >
+          <div className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-accent/20">
+            <Info className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <p className="flex-1 text-sm font-medium leading-6">
+            Captcha loaded after {captchaRetryCount} {captchaRetryCount === 1 ? "retry" : "retries"}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCaptchaRetryCount(0)}
+            className="rounded-lg p-1.5 text-accent-light outline-none transition hover:bg-accent/20 focus-visible:ring-2 focus-visible:ring-accent/40"
+            aria-label="Dismiss retry notice"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </motion.div>
       )}
 
       {/* Two-column layout for desktop */}

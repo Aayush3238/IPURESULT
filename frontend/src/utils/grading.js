@@ -3,9 +3,9 @@ export function gradeFromMarks(totalMarks) {
   if (isNaN(marks)) return "-";
 
   if (marks >= 90) return "O";
-  if (marks >= 80) return "A+";
-  if (marks >= 70) return "A";
-  if (marks >= 60) return "B+";
+  if (marks >= 75) return "A+";
+  if (marks >= 65) return "A";
+  if (marks >= 55) return "B+";
   if (marks >= 50) return "B";
   if (marks >= 45) return "C";
   if (marks >= 40) return "P";
@@ -13,6 +13,7 @@ export function gradeFromMarks(totalMarks) {
 }
 
 export function gradePointFromGrade(grade) {
+  const normalized = String(grade || "").trim().toUpperCase();
   const points = {
     O: 10,
     "A+": 9,
@@ -22,9 +23,11 @@ export function gradePointFromGrade(grade) {
     C: 5,
     P: 4,
     F: 0,
+    ABSENT: 0,
+    AB: 0,
   };
 
-  return points[grade] ?? 0;
+  return points[normalized] ?? 0;
 }
 
 export function estimateCredits(subjectCode, subjectName) {
@@ -85,7 +88,9 @@ export function normalizeSubject(subject) {
       : Number.isFinite(internal) && Number.isFinite(external)
         ? internal + external
         : totalVal;
-  const grade = gradeFromMarks(computedTotal);
+  const officialGrade = String(subject?.grade || "").trim();
+  const hasOfficialGrade = officialGrade && officialGrade !== "-";
+  const grade = hasOfficialGrade ? officialGrade.toUpperCase() : gradeFromMarks(computedTotal);
   const credits = getSubjectCredits(subject);
 
   return {
@@ -95,7 +100,7 @@ export function normalizeSubject(subject) {
     internal: internalVal || "-",
     external: externalVal || "-",
     total: Number.isFinite(Number(computedTotal)) ? String(computedTotal) : totalVal || "-",
-    grade: grade === "-" ? subject?.grade || "-" : grade,
+    grade: grade || "-",
     gradePoint: gradePointFromGrade(grade),
     credits,
   };

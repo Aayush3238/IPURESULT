@@ -1,0 +1,10 @@
+[
+  { "min": 90, "max": 100, "grade": "O", "gp": 10 },
+  { "min": 75, "max": 89, "grade": "A+", "gp": 9 },
+  { "min": 65, "max": 74, "grade": "A", "gp": 8 },
+  { "min": 55, "max": 64, "grade": "B+", "gp": 7 },
+  { "min": 50, "max": 54, "grade": "B", "gp": 6 },
+  { "min": 45, "max": 49, "grade": "C", "gp": 5 },
+  { "min": 40, "max": 44, "grade": "P", "gp": 4 },
+  { "min": 0, "max": 39, "grade": "F", "gp": 0 }
+]

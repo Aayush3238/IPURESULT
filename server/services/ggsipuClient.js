@@ -75,11 +75,92 @@ function hashPortalPassword(password, captcha) {
   return crypto.createHash("sha256").update(`${password}${captcha}`).digest("base64");
 }
 
-function buildLoginPayload({ enrollment, password, captcha }) {
+const CAPTCHA_MAX_RETRIES = 2;
+const CAPTCHA_RETRY_DELAY_MS = 1500;
+
+async function retryWithDelay(fn, maxRetries = CAPTCHA_MAX_RETRIES, delayMs = CAPTCHA_RETRY_DELAY_MS) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn(attempt);
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
+
+function getLoginForm(loginHtml) {
+  const $ = cheerio.load(loginHtml || "");
+  const form = $("#loginForm").length
+    ? $("#loginForm")
+    : $("form[name='loginForm']").length
+      ? $("form[name='loginForm']")
+      : $("form").first();
+
+  return { $, form };
+}
+
+function findInputName($, $form, predicate) {
+  let found = "";
+  $form.find("input,select,textarea").each((_index, element) => {
+    if (found) return;
+
+    const input = $(element);
+    const name = input.attr("name");
+    if (name && predicate(input)) {
+      found = name;
+    }
+  });
+  return found;
+}
+
+function buildLoginPayload({ loginHtml, enrollment, password, captcha }) {
+  const { $, form } = getLoginForm(loginHtml);
   const payload = new URLSearchParams();
-  payload.set("username", enrollment);
-  payload.set("passwd", hashPortalPassword(password, captcha));
-  payload.set("captcha", captcha);
+
+  form.find("input,select,textarea").each((_index, element) => {
+    const input = $(element);
+    const name = input.attr("name");
+    if (!name) return;
+
+    const type = String(input.attr("type") || "").toLowerCase();
+    if ((type === "checkbox" || type === "radio") && input.attr("checked") === undefined) {
+      return;
+    }
+
+    payload.set(name, input.attr("value") || "");
+  });
+
+  const usernameName = findInputName($, form, input => {
+    const type = String(input.attr("type") || "text").toLowerCase();
+    const name = `${input.attr("name") || ""} ${input.attr("id") || ""}`.toLowerCase();
+    return type !== "hidden" && type !== "password" && !name.includes("captcha");
+  }) || "username";
+
+  const passwordName = findInputName($, form, input => {
+    const type = String(input.attr("type") || "").toLowerCase();
+    const name = `${input.attr("name") || ""} ${input.attr("id") || ""}`.toLowerCase();
+    return type === "password" || name.includes("password") || name === "passwd";
+  }) || "passwd";
+
+  const captchaName = findInputName($, form, input => {
+    const name = `${input.attr("name") || ""} ${input.attr("id") || ""}`.toLowerCase();
+    return name.includes("captcha");
+  }) || "captcha";
+
+  payload.set(usernameName, enrollment);
+  payload.set(captchaName, captcha);
+
+  const hashedPassword = hashPortalPassword(password, captcha);
+  payload.set(passwordName, passwordName.toLowerCase() === "passwd" ? hashedPassword : password);
+  if (payload.has("passwd") || passwordName.toLowerCase() !== "passwd") {
+    payload.set("passwd", hashedPassword);
+  }
+
   return payload;
 }
 
@@ -119,20 +200,6 @@ function parseSemesters(html) {
   return semesters;
 }
 
-function gradeFromMarks(totalMarks) {
-  const marks = Number(totalMarks);
-  if (!Number.isFinite(marks)) return "-";
-
-  if (marks >= 90) return "O";
-  if (marks >= 75) return "A+";
-  if (marks >= 65) return "A";
-  if (marks >= 55) return "B+";
-  if (marks >= 50) return "B";
-  if (marks >= 45) return "C";
-  if (marks >= 40) return "P";
-  return "F";
-}
-
 function transformResultJson(data, semester) {
   const profile = data.stprofile || {};
   const rows = data.stresult || [];
@@ -146,6 +213,14 @@ function transformResultJson(data, semester) {
     semester: semester || "",
   };
 
+  const valueAt = (row, keys) => {
+    for (const key of keys) {
+      const value = row?.[key];
+      if (value !== undefined && value !== null && value !== "") return value;
+    }
+    return undefined;
+  };
+
   const parsedSubjects = rows.map((row) => {
     const internal = Number(row[3]);
     const external = Number(row[4]);
@@ -156,13 +231,30 @@ function transformResultJson(data, semester) {
           ? internal + external
           : null;
 
+    const rawCredits = valueAt(row, [
+      "credit",
+      "credits",
+      "paperCredit",
+      "paperCredits",
+      "cr",
+      "C",
+      7,
+      8
+    ]);
+    const creditsNum = Number(rawCredits);
+    const credits = Number.isFinite(creditsNum) && creditsNum > 0 && creditsNum <= 10
+      ? creditsNum
+      : undefined;
+    const grade = valueAt(row, ["grade", "Grade", "grd", "resultGrade", 6, 7]);
+
     return {
       code: row[1] || "",
       name: row[2] || "",
       internal: row[3] != null ? String(row[3]) : "-",
       external: row[4] != null ? String(row[4]) : "-",
       total: Number.isFinite(total) ? String(total) : "-",
-      credits: row.credit || row.credits || row[7] || row[0] || undefined,
+      grade: grade != null ? String(grade) : "-",
+      credits,
     };
   });
 
@@ -186,10 +278,13 @@ function transformResultJson(data, semester) {
 }
 
 export async function fetchCaptcha() {
-  const jar = new CookieJar();
-  const client = createPortalClient(jar);
+  let retryCount = 0;
 
-  try {
+  const result = await retryWithDelay(async (attempt) => {
+    retryCount = attempt;
+    const jar = new CookieJar();
+    const client = createPortalClient(jar);
+
     const loginResponse = await client.get(LOGIN_PATH);
     const captchaPath = getCaptchaPath(loginResponse.data);
     const captchaResponse = await client.get(captchaPath, {
@@ -212,9 +307,11 @@ export async function fetchCaptcha() {
       sessionId,
       captchaImage: `data:${contentType};base64,${imageBase64}`,
     };
-  } catch (error) {
+  }).catch((error) => {
     throw normalizePortalError(error);
-  }
+  });
+
+  return { ...result, retryCount };
 }
 
 export async function loginToPortal({ sessionId, enrollment, password, captcha }) {
@@ -229,7 +326,7 @@ export async function loginToPortal({ sessionId, enrollment, password, captcha }
   try {
     const loginResponse = await client.post(
       session.loginAction || "/Login",
-      buildLoginPayload({ enrollment, password, captcha }),
+      buildLoginPayload({ loginHtml: session.loginHtml, enrollment, password, captcha }),
       {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",

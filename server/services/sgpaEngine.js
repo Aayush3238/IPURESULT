@@ -30,6 +30,10 @@ try {
   console.warn("[sgpaEngine] Failed to load paperCredits.json:", err.message);
 }
 
+const KNOWN_TWO_LETTER_PREFIXES = [...new Set(
+  Object.keys(paperCredits).map(k => k.split("-")[0]).filter(p => p.length === 2)
+)];
+
 export function calculateGradePoint(totalMarks) {
   const marks = Math.round(Number(totalMarks));
   if (isNaN(marks)) return 0;
@@ -78,6 +82,18 @@ function normalizePaperCode(code) {
     const dashed = compact.replace(/^([A-Z]+)(\d+[A-Z]?)$/, "$1-$2");
     if (paperCredits[dashed] !== undefined) return dashed;
 
+    const singleLetterMatch = compact.match(/^([A-Z])(\d)(\d{3})$/);
+    if (singleLetterMatch) {
+      const letter = singleLetterMatch[1];
+      const number = singleLetterMatch[3];
+      for (const prefix of KNOWN_TWO_LETTER_PREFIXES) {
+        if (prefix[0] === letter) {
+          const tryCode = `${prefix}-${number}`;
+          if (paperCredits[tryCode] !== undefined) return tryCode;
+        }
+      }
+    }
+
     const baseCode = compact.replace(/^([A-Z]+)(\d+)[TP]$/, "$1$2");
     const baseDashed = baseCode.replace(/^([A-Z]+)(\d+)$/, "$1-$2");
     if (paperCredits[baseDashed] !== undefined) return baseDashed;
@@ -94,16 +110,20 @@ export function getPaperCredits(paperCode, parsedCredits, subjectName = "") {
   
   const creditsNum = Number(parsedCredits);
   if (Number.isFinite(creditsNum) && creditsNum > 0) {
+    console.warn(`[sgpaEngine] Credits for "${paperCode}" (normalized: "${code}") not in paperCredits.json. Using parsed value: ${creditsNum}`);
     return creditsNum;
   }
   
   const name = `${subjectName} ${code}`.toLowerCase();
   if (name.includes("lab") || name.includes("practical") || name.includes("viva") || name.includes("workshop")) {
+    console.warn(`[sgpaEngine] Credits for "${paperCode}" (normalized: "${code}") not in paperCredits.json. Using heuristic: 1 (lab/practical/workshop)`);
     return 1;
   }
   if (name.includes("ethics") || name.includes("values") || code.startsWith("HS")) {
+    console.warn(`[sgpaEngine] Credits for "${paperCode}" (normalized: "${code}") not in paperCredits.json. Using heuristic: 2 (ethics/values)`);
     return 2;
   }
+  console.warn(`[sgpaEngine] Credits for "${paperCode}" (normalized: "${code}") not in paperCredits.json. Using heuristic: 4 (default)`);
   return 4;
 }
 
@@ -180,12 +200,19 @@ export function calculateCGPA(semestersList = []) {
   let pointsTotal = 0;
   
   semestersList.forEach(sem => {
-    const sgpa = Number(sem.sgpa || sem.summary?.sgpa || 0);
-    const credits = Number(sem.creditTotal || sem.summary?.totalCredits || 0);
+    const credits = Number(
+      sem.creditTotal || sem.summary?.totalCredits || sem.summary?.sgpaEngine?.creditTotal || 0
+    );
+    const weightedPoints = Number(
+      sem.weightedPoints ||
+      sem.summary?.weightedPoints ||
+      sem.summary?.sgpaEngine?.weightedPoints ||
+      0
+    );
     
-    if (sgpa > 0 && credits > 0) {
+    if (credits > 0) {
       creditTotal += credits;
-      pointsTotal += (sgpa * credits);
+      pointsTotal += weightedPoints;
     }
   });
   

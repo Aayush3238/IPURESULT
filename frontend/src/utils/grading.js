@@ -165,11 +165,11 @@ export function calculateCgpa(results = []) {
   const totals = results.reduce(
     (acc, result) => {
       const normalized = normalizeResult(result);
-      const sgpa = Number(normalized?.summary?.sgpa);
+      const creditPoints = Number(normalized?.summary?.creditPoints || 0);
       const credits = Number(normalized?.summary?.totalCredits);
-      if (Number.isFinite(sgpa) && Number.isFinite(credits) && credits > 0) {
+      if (Number.isFinite(credits) && credits > 0) {
         acc.credits += credits;
-        acc.points += sgpa * credits;
+        acc.points += creditPoints;
       }
       return acc;
     },

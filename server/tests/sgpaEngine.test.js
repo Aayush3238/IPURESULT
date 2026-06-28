@@ -27,10 +27,11 @@ try {
 }
 
 // 2. Test SGPA calculation (First Semester)
-// paperCredits.json: BS-103=3, BS-105=3, ES-107=3, BS-151=1, ES-157=2
+// paperCredits.json: BS-103=3, BS-105=3, ES-107=3, BS-151=1, ES-157=1
 // BS101, HS119, BS153 not in paperCredits → fallback to parsed credits
-// Total credits: 3+3+3+4+2+1+1+2 = 19
-// Total points: 30+27+30+36+20+9+9+14 = 175. SGPA = 175 / 19 = 9.2105 -> 9.21
+// ES157 has credits:2 parsed but paperCredits.json has 1 → JSON wins
+// Total credits: 3+3+3+4+2+1+1+1 = 18
+// Total points: 30+27+30+36+20+9+9+7 = 168. SGPA = 168 / 18 = 9.3333 -> 9.33
 const sem1Subjects = [
   { code: "BS103", name: "APPLIED CHEMISTRY", credits: 3, total: 92 }, // GP 10, Points 30
   { code: "BS105", name: "APPLIED PHYSICS - I", credits: 3, total: 85 }, // GP 9, Points 27
@@ -39,14 +40,14 @@ const sem1Subjects = [
   { code: "HS119", name: "PROFESSIONAL ETHICS", credits: 2, total: 95 }, // GP 10, Points 20
   { code: "BS151", name: "PHYSICS LAB", credits: 1, total: 82 }, // GP 9, Points 9
   { code: "BS153", name: "CHEMISTRY LAB", credits: 1, total: 78 }, // GP 9, Points 9
-  { code: "ES157", name: "ELECTRICAL LAB", credits: 2, total: 55 } // GP 7, Points 14
+  { code: "ES157", name: "ELECTRICAL LAB", credits: 2, total: 55 } // GP 7, Points 7 (JSON has 1cr)
 ];
 
 try {
   const result = calculateSGPA(sem1Subjects);
-  assert.strictEqual(result.creditTotal, 19, "Total credits should be 19");
-  assert.strictEqual(result.weightedPoints, 175, "Total weighted points should be 175");
-  assert.strictEqual(result.sgpa, 9.21, "SGPA should be 9.21");
+  assert.strictEqual(result.creditTotal, 18, "Total credits should be 18");
+  assert.strictEqual(result.weightedPoints, 168, "Total weighted points should be 168");
+  assert.strictEqual(result.sgpa, 9.33, "SGPA should be 9.33");
   console.log("✓ 2. SGPA calculation tests passed.");
 } catch (err) {
   console.error("✗ 2. SGPA calculation tests failed:", err.message);
@@ -54,19 +55,19 @@ try {
 }
 
 // 3. Test CGPA calculation (Multiple Semesters)
-// Semester 1: SGPA 9.21, Credits 19
-// Semester 2: SGPA 8.50, Credits 24
-// CGPA = ((9.21 * 19) + (8.50 * 24)) / (19 + 24) = (174.99 + 204) / 43 = 378.99 / 43 = 8.8137 -> 8.81
+// Semester 1: weightedPoints 168, Credits 18 (SGPA = 168/18 = 9.33)
+// Semester 2: weightedPoints 204, Credits 24 (SGPA = 204/24 = 8.50)
+// CGPA = (168 + 204) / (18 + 24) = 372 / 42 = 8.8571 -> 8.86
 const semesters = [
-  { sgpa: 9.21, creditTotal: 19 },
-  { sgpa: 8.50, creditTotal: 24 }
+  { creditTotal: 18, weightedPoints: 168 },
+  { creditTotal: 24, weightedPoints: 204 }
 ];
 
 try {
   const result = calculateCGPA(semesters);
-  assert.strictEqual(result.creditTotal, 43, "Total credits should be 43");
-  assert.strictEqual(result.cgpa, 8.81, "CGPA should be 8.81");
-  assert.strictEqual(result.percentage, 88.1, "Percentage should be 88.1%");
+  assert.strictEqual(result.creditTotal, 42, "Total credits should be 42");
+  assert.strictEqual(result.cgpa, 8.86, "CGPA should be 8.86");
+  assert.strictEqual(result.percentage, 88.6, "Percentage should be 88.6%");
   console.log("✓ 3. CGPA calculation tests passed.");
 } catch (err) {
   console.error("✗ 3. CGPA calculation tests failed:", err.message);

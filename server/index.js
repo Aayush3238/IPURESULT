@@ -17,9 +17,9 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
 app.use(
   cors({
     origin(origin, callback) {
-      const isLocalViteOrigin = /^http:\/\/localhost:517\d$/.test(origin || "");
+      const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin || "");
       const isVercelPreview = Boolean(origin && origin.endsWith('.vercel.app'));
-      if (!origin || allowedOrigins.includes(origin) || isLocalViteOrigin || isVercelPreview) {
+      if (!origin || allowedOrigins.includes(origin) || isLocalhost || isVercelPreview) {
         callback(null, true);
         return;
       }

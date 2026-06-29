@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node index.js",
-    "start": "node index.js",
+    "dev": "node start.js",
+    "start": "node start.js",
     "test": "node tests/sgpaEngine.test.js && node tests/detectPortalFailure.test.js",
     "extract-credits": "node scripts/extractCredits.js"
   },
